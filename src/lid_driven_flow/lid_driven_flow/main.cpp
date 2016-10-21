@@ -33,12 +33,16 @@ int main(){
 		evolution();
 		if (n % 100 == 0){
 			Error();
+			cout << sizeof(double) << endl;
 			cout << "The " << n << "th computation result:" << endl
 				<< "The u,v of point (NX/2,NY/2) is: " << setprecision(6)
 				<< u[NX / 2][NY / 2][0] << " , " << u[NX / 2][NY / 2][1] << endl;
 			cout << "The relative error of uv is: "
 				<< setiosflags(ios::scientific) << error << endl;
 		}
+
+		if (n % 1000 == 0)
+			output(n);
 	}
 
 	return 0;
@@ -47,8 +51,8 @@ int main(){
 void init(){
 	dx = 1.0;
 	dy = 1.0;
-	Lx = dx * double(NY);
-	Ly = dy * double(NX);
+	Lx = dx * double(NX);
+	Ly = dy * double(NY);
 	dt = dx;
 	c = dx / dt;
 	rho0 = 1.0;
@@ -77,6 +81,7 @@ double feq(int k, double rho, double u[2]){
 }
 
 void evolution(){
+#pragma omp parallel for
 	for (i = 1; i < NX; i++)
 		for (j = 1; j < NY; j++)
 			for (k = 0; k < Q; k++){
@@ -84,7 +89,7 @@ void evolution(){
 				jp = j - e[k][1];
 				F[i][j][k] = f[ip][jp][k] + (feq(k, rho[ip][jp], u[ip][jp]) - f[ip][jp][k]) / tau_f;
 			}
-
+#pragma omp parallel for
 	for (i = 1; i < NX; i++)
 		for (j = 1; j < NY; j++){
 			u0[i][j][0] = u[i][j][0];
@@ -106,22 +111,27 @@ void evolution(){
 			u[i][j][1] /= rho[i][j];
 		}
 
+#pragma omp parallel for
 	for (j = 1; j < NY; j++)
 		for (k = 0; k < Q; k++){
 			rho[NX][j] = rho[NX - 1][j];
-			f[NX][j][k] = feq(k, rho[NX][j], u[NX][j]) + f[NX - 1][j][k] - feq(k, rho[NX - 1][j], u[NX - 1][j]);
+			f[NX][j][k] = feq(k, rho[NX][j], u[NX][j]) + 
+				f[NX - 1][j][k] - feq(k, rho[NX - 1][j], u[NX - 1][j]);
 			rho[0][j] = rho[1][j];
-			f[0][j][k] = feq(k, rho[0][j], u[0][j]) + f[1][j][k] - feq(k, rho[1][j], u[1][j]);
+			f[0][j][k] = feq(k, rho[0][j], u[0][j]) + f[1][j][k] 
+				- feq(k, rho[1][j], u[1][j]);
 		}
-
-	for (i = 0; i <= NX; i++)
+#pragma omp parallel for
+	for (i = 1; i < NX; i++)
 		for (k = 0; k < Q; k++){
 			rho[i][0] = rho[i][1];
-			f[i][0][k] = feq(k,rho[i][0],u[i][0]) + f[i][1][k] - feq(k,rho[i][1],u[i][1]);
+			f[i][0][k] = feq(k,rho[i][0],u[i][0]) 
+				+ f[i][1][k] - feq(k,rho[i][1],u[i][1]);
 
 			rho[i][NY] = rho[i][NY - 1];
 			u[i][NY][0] = U;
-			f[i][NY][k] = feq(k, rho[i][NY], u[i][NY]) + f[i][NY - 1][k] - feq(k, rho[i][NY - 1], u[i][NY - 1]);
+			f[i][NY][k] = feq(k, rho[i][NY], u[i][NY]) 
+				+ f[i][NY - 1][k] - feq(k, rho[i][NY - 1], u[i][NY - 1]);
 
 		}
 }
@@ -130,15 +140,25 @@ void output(int m)
 {
 	ostringstream name;
 	name << "cavity_" << m << ".data";
-	ofstream out(name.str().c_str());
+	ofstream out(name.str().c_str(),ofstream::binary);
 
-	out << "Title = \"LBM Lid Driven Flow\"\n" << endl;
+	//out << "Title = \"LBM Lid Driven Flow\"\n" << endl;
 
 	for (j = 0; j <= NY; j++)
-		for (i = 0; i < NX; i++){
-			out << double(i) / Lx << " "
-				<< double(i) / Ly << " " << u[i][j][0] << " "
+	for (i = 0; i <= NX; i++)
+		{
+			/*
+			double ipos = double(i) / Lx;
+			double jpos = double(i) / Lx;
+			out.write((char*)&ipos, sizeof(double));
+			out.write((char*)&jpos, sizeof(double));
+			*/
+			out.write((char*)&u[i][j][0],sizeof(double));
+			out.write((char*)&u[i][j][1], sizeof(double));
+			/*
+			out << u[i][j][0]
 				<< u[i][j][1] << endl;
+				*/
 		}
 }
 
@@ -153,9 +173,6 @@ void Error(){
 			temp2 += (u[i][j][0] * u[i][j][0] + u[i][j][1] * u[i][j][1]);
 		}
 
-	cout << "temp1: " << temp1 << endl;
-
-	cout << "temp2: " << temp2 << endl;
 
 	temp1 = sqrt(temp1);
 	temp2 = sqrt(temp2);
