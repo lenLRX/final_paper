@@ -4,7 +4,7 @@ import numpy as np
 import math
 import struct
 
-data = open('../lid_driven_flow/lid_driven_flow/cavity_80000.data','rb')
+data = open('../lid_driven_flow/lid_driven_flow/cavity_275000.data','rb')
 
 size = (257,257)
 
@@ -27,10 +27,10 @@ for i in xrange(size[0]):
         fieldU[i][j] = pair[0]
         fieldV[i][j] = pair[1]
         speedfield[i][j] = math.sqrt(pair[0] * pair[0] + pair[1] * pair[1])
-print data.read(16)
+
 fig = plt.figure()
-plt.xlim = (0,256)
-plt.ylim = (0,256)
+plt.xlim = (0,257)
+plt.ylim = (0,257)
 
 '''
 fig_quiver = fig.add_subplot(2,1,1,xlim = (0,256),ylim = (0,256))
@@ -38,6 +38,9 @@ fig_contour = fig.add_subplot(2,1,1,xlim = (0,256),ylim = (0,256))
 '''
 
 #plt.quiver(fieldU,fieldV,scale = 3)
-plt.contour(speedfield)
+#plt.contour(speedfield)
+
+Y, X = np.mgrid[0:257, 0:257]
+plt.streamplot(X,Y,fieldU,fieldV,density=3)
 
 plt.show()
