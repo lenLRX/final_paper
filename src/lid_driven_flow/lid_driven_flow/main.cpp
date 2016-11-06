@@ -11,7 +11,7 @@ using namespace std;
 const int Q = 9;
 const int NX = 256;
 const int NY = 256;
-const double U = 0.1;
+const double U = 0.0;
 
 int e[Q][2] = { { 0, 0 }, { 1, 0 }, { 0, 1 }, { -1, 0 }, { 0, -1 }, { 1, 1 }, { -1, 1 }, { -1, -1 }, { 1, -1 } };
 double w[Q] = { 4.0 / 9, 1.0 / 9, 1.0 / 9, 1.0 / 9, 1.0 / 9, 1.0 / 36, 1.0 / 36, 1.0 / 36, 1.0 / 36 };
@@ -66,6 +66,8 @@ void init(){
 			u[i][j][0] = 0;
 			u[i][j][1] = 0;
 			rho[i][j] = rho0;
+			if (i < 10 && j < 10)
+				rho[i][j] = 0.99;
 			u[i][NY][0] = U;
 			for (k = 0; k < Q; k++)
 				f[i][j][k] = feq(k, rho[i][j], u[i][j]);

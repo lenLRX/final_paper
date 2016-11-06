@@ -3,10 +3,10 @@ from matplotlib.pyplot import cm
 import numpy as np
 import math
 import struct
+#Droplet_Dynamics_on_Surface
+data = open('../SRCone/SRCone/cavity_500.data','rb')
 
-data = open('../lid_driven_flow/lid_driven_flow/cavity_1000.data','rb')
-
-size = (257,257)
+size = (30,80)
 
 fieldU = np.zeros(size,dtype=float)
 fieldV = np.zeros(size,dtype=float)
@@ -19,28 +19,27 @@ def speed(x,y):
 
 for i in xrange(size[0]):
     for j in xrange(size[1]):
-        p = data.read(16)
+        p = data.read(8)
         if(p == ''):
             print p
             print (i,j)
-        pair = struct.unpack('dd',p)
-        fieldU[i][j] = pair[0]
-        fieldV[i][j] = pair[1]
-        speedfield[i][j] = math.sqrt(pair[0] * pair[0] + pair[1] * pair[1])
+        pair = struct.unpack('d',p)
+        speedfield[i][j] = pair[0]
 
 fig = plt.figure()
 plt.xlim = (0,80)
-plt.ylim = (0,40)
+plt.ylim = (0,80)
 
 '''
 fig_quiver = fig.add_subplot(2,1,1,xlim = (0,256),ylim = (0,256))
 fig_contour = fig.add_subplot(2,1,1,xlim = (0,256),ylim = (0,256))
 '''
-
+print np.max(speedfield)
 #plt.quiver(fieldU,fieldV,scale = 3)
-#plt.contour(speedfield)
+C = plt.contour(speedfield,10)
+plt.clabel(C)
 
-Y, X = np.mgrid[0:257, 0:257]
-plt.streamplot(X,Y,fieldU,fieldV,density=3)
+#Y, X = np.mgrid[0:257, 0:257]
+#plt.streamplot(X,Y,fieldU,fieldV,density=3)
 
 plt.show()

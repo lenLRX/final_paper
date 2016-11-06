@@ -40,6 +40,7 @@ int main(){
 		for (int k = 0; k < 19; k++)
 			cout << "k: " << k << " F: " << model.F.at(52, 20, 15, k) << endl;
 			*/
+		if (i % 5 == 0)
 		model.output(i);
 		//if (i % 100 == 0){
 			cout << model.error() << endl;

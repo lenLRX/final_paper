@@ -53,11 +53,23 @@ public:
 		e[17][0] = 0.0;  e[17][1] = 1.0;  e[17][2] = -1.0;//
 		e[18][0] = 0.0;  e[18][1] = -1.0;  e[18][2] = 1.0;//
 
-		double T = 2.925;
-		//g = -1 / T;
-		g = -0.33898;
+		rho_liquid = 4.9282;
+		rho_gas = 1.0132;
+
+		
+
+
+		TonTc = 0.95;
+		T = TonTc * Tc;
+		g = -1 / T;
+		
+		//g = -0.33898;
 		g1 = g;
 		g2 = g / 2;
+
+		beta = 1.16;
+		neg_beta = -beta;
+
 		Fint_const = -(1 - beta) / 2;
 		Fint_const_g1 = Fint_const * g1;
 		Fint_const_g2 = Fint_const * g2;
@@ -77,7 +89,7 @@ public:
 				if (x < (xdim - 12) / 2 || x >(xdim + 12))
 					gs.at(x, y) = -0.25;
 				else
-					gs.at(x, y) = -0.1;
+					gs.at(x, y) = -0.25;
 			}
 		}
 		//init droplet
@@ -87,11 +99,11 @@ public:
 				for (int z = 0; z < zdim; z++){
 					if (sqrt((x - xdim / 2) * (x - xdim / 2)
 						+ (y - ydim / 2) * (y - ydim / 2)
-						+ (z - zdim / 2) * (z - zdim / 2)) <= 12){
-						rho.at(x, y, z) = 2.745;
+						+ (z ) * (z )) <= 12){
+						rho.at(x, y, z) = rho_liquid;
 					}
 					else
-						rho.at(x, y, z) = 0.0617;
+						rho.at(x, y, z) = rho_gas;
 				}
 			}
 		}
@@ -107,8 +119,24 @@ public:
 	}
 
 	inline double effective_mass(double _rho){
-		return sqrt(2 * (calc_pressure(_rho) - _rho / 3) / (c0 * g));
+		//double temp = PR_EOS(_rho) - _rho / 3;
+		return sqrt(2 * (PR_EOS(_rho) - _rho / 3) / (c0 * g));
+		//return sqrt(2 * (calc_pressure(_rho) - _rho / 3) / (c0 * g));
 		//return 1 - exp(-_rho);
+	}
+
+	inline double PR_EOS(double _rho){
+		static const double R = 1;
+		static const double a = 2.0 / 49.0;
+		static const double b = 2.0/21.0;
+		static const double w = 0.334;
+		static double alpha_T_sqrt = 
+			1 + (0.37464 + 1.54226 * w + 0.26992 * w * w) *
+			(1 - sqrt(TonTc));
+		static double alpht_T = alpha_T_sqrt * alpha_T_sqrt;
+		return _rho * T / (1 - b * _rho) 
+			- a * _rho * _rho * alpht_T / 
+			(1 + 2 * b * _rho - b * b * _rho * _rho);
 	}
 
 	inline double calc_pressure(double _rho){
@@ -152,7 +180,7 @@ public:
 	}
 
 	inline double Fg(double _rho){
-		return 9.8 * _rho;
+		return -5e-4 * _rho;
 	}
 
 	inline double Fs(int x,int y,int z){
@@ -294,6 +322,7 @@ public:
 						Force.at(x, y, z, 2) += e[k][2] * (temp1 + temp2);
 
 					}
+					Force.at(x, y, z, 2) += Fg(rho.at(x, y, z));
 					if (Force.at(x, y, z, 0) > max){
 						max = Force.at(x, y, z, 0);
 						max_x = x;
@@ -320,7 +349,7 @@ public:
 		for (int k = 0; k < Q; k++)
 			cout << "k: " << k << " F: " << F.at(max_x, max_y, max_z, k) << endl;
 			*/
-		/*
+		
 		//bottom boundary
 #pragma omp parallel for
 		for (int x = 0; x < xdim; x++)
@@ -329,7 +358,7 @@ public:
 				Force.at(x, y, z, 2) += Fs(x, y, z); 
 			}
 		//bottom boundary ends
-		*/
+		
 
 
 		
@@ -496,9 +525,9 @@ public:
 				out.write((char*)&V.at(i,j,1), sizeof(double));
 			}
 			*/
-		for (int j = 0; j < ydim; j++)
+		for (int j = 0; j < zdim; j++)
 			for (int i = 0; i < xdim; i++)
-				out.write((char*)&rho.at(i, j, 15),sizeof(double));
+				out.write((char*)&rho.at(i, 20, j),sizeof(double));
 	}
 
 //private:
@@ -506,8 +535,8 @@ public:
 
 	double w[19];
 
-	double beta = 0.886;
-	double neg_beta = -0.886;
+	double beta;
+	double neg_beta;
 	double Fint_const;
 	double Fint_const_g1;
 	double Fint_const_g2;
@@ -516,6 +545,13 @@ public:
 	double g2;
 	double tau = 1.0;
 	double c0 = 6.0;
+
+	double rho_liquid;
+	double rho_gas;
+
+	double TonTc;
+	const double Tc = 0.0729;
+	double T;
 
 	int Q = 19;
 
