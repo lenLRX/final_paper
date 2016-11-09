@@ -1,5 +1,6 @@
 #include "Droplet_Dynamics.h"
 #include <iostream>
+#include <iomanip>
 
 /*
 const int e[19][3] = {
@@ -26,25 +27,40 @@ const int e[19][3] = {
 */
 
 int main(){
-	Droplet_Dynamics model;
-	for (int i = 0; i < 100000; i++){
-		model.update();
-		cout << "round:" << i << endl;
-		/*
-		cout << "round:" << i << endl;
-		cout << "speed ( " << model.U.at(52, 20, 15) << " , " << model.V.at(52, 20, 15) << " , " << model.W.at(52, 20, 15) << " )"
-			<< "rho: " << model.rho.at(52, 20, 15) << endl;
-		cout << "Force ( " << model.Force.at(52, 20, 15,0) << " , " << model.Force.at(52, 20, 15,1) 
-			<< " , " << model.Force.at(52, 20, 15,2) << " )"
-			<< endl;
-		for (int k = 0; k < 19; k++)
-			cout << "k: " << k << " F: " << model.F.at(52, 20, 15, k) << endl;
-			*/
-		if (i % 5 == 0)
-		model.output(i);
-		//if (i % 100 == 0){
-			cout << model.error() << endl;
-		//}
+	ofstream result_file("contact_angle.record");
+	int total = 20;
+	for (int r = 0; r < total; r++){
+		double gs =  -0.2 - r * 0.05;
+		Droplet_Dynamics model(50, 50, 40,gs);
+		double last_contact_angle = 0;
+		double last_model_error = 0;
+		for (int i = 0;; i++){
+			model.update();
+			if (i % 100 == 0)
+			{
+				cout << "gs: " << gs << " round:" << i << endl;
+				double model_error = model.error();
+				double model_relative_error = abs(last_model_error - model_error) / model_error;
+				cout << setprecision(12) << "model_error: " << model_error
+				<< " relative error: " << model_relative_error << endl;
+				last_model_error = model_error;
+
+				double the_contact_angle = model.calc_contact_angle();
+				double error = abs(last_contact_angle - the_contact_angle) / the_contact_angle;
+				cout << setprecision(12) << "contact angle: " << the_contact_angle 
+					<< " last contact angle: " << last_contact_angle << " relative error: " << error << endl;
+				last_contact_angle = the_contact_angle;
+				if (error < 1e-5&& !isnan(model_relative_error) && model_error != 0){
+					result_file << gs << " , " << the_contact_angle << endl;
+					break;
+				}
+					
+			}
+			if (i % 200 == 0){
+				model.output(i);
+			}
+		}
+		
 	}
 	return 0;
 }

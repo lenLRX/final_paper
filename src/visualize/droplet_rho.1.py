@@ -4,7 +4,7 @@ import numpy as np
 import math
 import struct
 #Droplet_Dynamics_on_Surface
-data = open('../droplet_example/droplet_example/cavity_100.data','rb')
+data = open('../droplet_example/droplet_example/cavity_300.data','rb')
 
 size = (101,101)
 

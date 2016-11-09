@@ -4,9 +4,9 @@ import numpy as np
 import math
 import struct
 #Droplet_Dynamics_on_Surface
-data = open('../SRCone/SRCone/cavity_500.data','rb')
+data = open('../SRCone/SRCone/gs-0.2_200.data','rb')
 
-size = (30,80)
+size = (40,50)
 
 fieldU = np.zeros(size,dtype=float)
 fieldV = np.zeros(size,dtype=float)
@@ -36,7 +36,7 @@ fig_contour = fig.add_subplot(2,1,1,xlim = (0,256),ylim = (0,256))
 '''
 print np.max(speedfield)
 #plt.quiver(fieldU,fieldV,scale = 3)
-C = plt.contour(speedfield,10)
+C = plt.contour(speedfield,levels = [3.4])
 plt.clabel(C)
 
 #Y, X = np.mgrid[0:257, 0:257]

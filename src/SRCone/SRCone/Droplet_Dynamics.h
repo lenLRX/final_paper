@@ -22,7 +22,7 @@ const int r[19] = { 0, 2, 1, 4, 3, 6, 5, 8, 7, 10, 9, 12, 11, 14, 13, 16, 15, 18
 class Droplet_Dynamics
 {
 public:
-	Droplet_Dynamics(int xdim = 80, int ydim = 40, int zdim = 30)
+	Droplet_Dynamics(int xdim = 80, int ydim = 40, int zdim = 30,double gs = -0.25)
 		:xdim(xdim), ydim(ydim), zdim(zdim),
 		U(xdim, ydim, zdim), U0(xdim, ydim, zdim), UF(xdim, ydim, zdim),
 		V(xdim, ydim, zdim), V0(xdim, ydim, zdim), VF(xdim, ydim, zdim),
@@ -53,13 +53,13 @@ public:
 		e[17][0] = 0.0;  e[17][1] = 1.0;  e[17][2] = -1.0;//
 		e[18][0] = 0.0;  e[18][1] = -1.0;  e[18][2] = 1.0;//
 
-		rho_liquid = 4.9282;
-		rho_gas = 1.0132;
+		rho_liquid = 6.3989;
+		rho_gas = 0.3797;
 
-		
+		floor_gs = gs;
 
 
-		TonTc = 0.95;
+		TonTc = 0.86;
 		T = TonTc * Tc;
 		g = -1 / T;
 		
@@ -86,10 +86,13 @@ public:
 #pragma omp parallel for
 		for (int y = 0; y < ydim; y++){
 			for (int x = 0; x < xdim;x++){
+				gs.at(x,y) = floor_gs;
+				/*
 				if (x < (xdim - 12) / 2 || x >(xdim + 12))
 					gs.at(x, y) = -0.25;
 				else
 					gs.at(x, y) = -0.25;
+				*/
 			}
 		}
 		//init droplet
@@ -97,13 +100,18 @@ public:
 		for (int x = 0; x < xdim; x++){
 			for (int y = 0; y < ydim; y++){
 				for (int z = 0; z < zdim; z++){
+					/*
 					if (sqrt((x - xdim / 2) * (x - xdim / 2)
 						+ (y - ydim / 2) * (y - ydim / 2)
-						+ (z ) * (z )) <= 12){
+						+ (z -15) * (z -15)) <= 12){
 						rho.at(x, y, z) = rho_liquid;
 					}
 					else
 						rho.at(x, y, z) = rho_gas;
+					*/
+					rho.at(x,y,z) = 
+						(rho_liquid + rho_gas) / 2.0 
+						- (rho_liquid - rho_gas) / 2.0*tanh(2.0*(sqrt(double((x - xdim / 2)*(x - xdim / 2) + (y - ydim / 2)*(y - ydim / 2) + (z - 14)*(z - 14))) - 12) / 5.0);
 				}
 			}
 		}
@@ -180,7 +188,7 @@ public:
 	}
 
 	inline double Fg(double _rho){
-		return -5e-4 * _rho;
+		return -5e-6 * _rho;
 	}
 
 	inline double Fs(int x,int y,int z){
@@ -253,7 +261,7 @@ public:
 					for (int k = 0; k < Q; k++){
 						rho.at(x, y, z) += F.at(x, y, z, k);
 					}
-
+					/*
 					if (rho.at(x, y, z) < 0){
 						cout << "x: " << x << " y: " << y << " z:" << z << endl;
 						cout << "rho: " << rho.at(x, y, z) << endl;
@@ -271,6 +279,7 @@ public:
 							cout << "k: " << k << " F: " << F.at(x, y, z, k) << endl;
 						cout << "error" << endl;
 					}
+					*/
 				}
 					
 
@@ -314,15 +323,25 @@ public:
 							temp1 = g2 * m_x;
 							temp2 = Fint_const_g2 * m_x * m_x;
 						}
-
-						temp1 = temp1 * neg_beta * effective_mass(rho.at(x, y, z));
+						double effective_mass_here = effective_mass(rho.at(x, y, z));
+						temp1 = temp1 * neg_beta * effective_mass_here;
 
 						Force.at(x, y, z, 0) += e[k][0] * (temp1 + temp2);
 						Force.at(x, y, z, 1) += e[k][1] * (temp1 + temp2);
 						Force.at(x, y, z, 2) += e[k][2] * (temp1 + temp2);
 
+						if (zp == 0){
+							double _gs = gs.at(x, y);
+							double _temp = w[k] * effective_mass_here * _gs *18;
+							Force.at(x, y, z, 0) -= e[k][0] * _temp;
+							Force.at(x, y, z, 1) -= e[k][1] * _temp;
+							Force.at(x, y, z, 2) -= e[k][2] * _temp;
+						}
 					}
+
 					Force.at(x, y, z, 2) += Fg(rho.at(x, y, z));
+
+					/*
 					if (Force.at(x, y, z, 0) > max){
 						max = Force.at(x, y, z, 0);
 						max_x = x;
@@ -330,6 +349,7 @@ public:
 						max_z = z;
 						max_rho = rho.at(x,y,z);
 					}
+					*/
 						
 				}
 		/*
@@ -350,6 +370,7 @@ public:
 			cout << "k: " << k << " F: " << F.at(max_x, max_y, max_z, k) << endl;
 			*/
 		
+		/*
 		//bottom boundary
 #pragma omp parallel for
 		for (int x = 0; x < xdim; x++)
@@ -358,7 +379,7 @@ public:
 				Force.at(x, y, z, 2) += Fs(x, y, z); 
 			}
 		//bottom boundary ends
-		
+		*/
 
 
 		
@@ -379,8 +400,6 @@ public:
 					double temp_u = 0;
 					double temp_v = 0;
 					double temp_w = 0;
-					if (x == 52 && y == 20 && z == 15)
-						cout << "pause" << endl;
 					for (int k = 0; k < Q; k++){
 						temp_u += e[k][0] * F.at(x, y, z, k);
 						temp_v += e[k][1] * F.at(x, y, z, k);
@@ -491,7 +510,7 @@ public:
 	double error(){
 		double temp1 = 0;
 		double temp2 = 0;
-//#pragma omp parallel for reduction (+:temp1,temp2)
+#pragma omp parallel for reduction (+:temp1,temp2)
 		for (int x = 0; x < xdim; x++)
 			for (int y = 0; y < ydim; y++)
 				for (int z = 0; z < zdim; z++){
@@ -504,14 +523,109 @@ public:
 						+ (V.at(x, y, z) + V.at(x, y, z)) * (V.at(x, y, z) + V.at(x, y, z))
 						+ (W.at(x, y, z) + W.at(x, y, z)) * (W.at(x, y, z) + W.at(x, y, z));
 				}
-		cout << "temp1: " << temp1 << endl;
-		cout << "temp2: " << temp2 << endl;
-		return temp1 / (temp2 + 1e-30);
+		//cout << "temp1: " << temp1 << endl;
+		//cout << "temp2: " << temp2 << endl;
+		return sqrt(temp1 / (temp2 + 1e-30));
 	}
+
+	double calc_contact_angle(){
+		double phase_interface_rho = 0.5*(rho_gas + rho_liquid);
+		int mid_x = xdim / 2;
+		int mid_y = ydim / 2;
+		double h_upper;//upper bound of droplet
+		double h_lower;
+		double h;//height of droplet
+		double btm_left_bound = 0, btm_right_bound = 0;
+		for (int z = 0; z < zdim_1; z++){
+			double rho_low = rho.at(mid_x, mid_y, z);
+			double rho_up = rho.at(mid_x, mid_y, z + 1);
+			if (rho_low >= phase_interface_rho && rho_up < phase_interface_rho){
+				h_upper = double(z) + (phase_interface_rho - rho_low) / (rho_up - rho_low);
+			}
+			if (rho_low < phase_interface_rho && rho_up >= phase_interface_rho){
+				h_lower = double(z) + (phase_interface_rho - rho_low) / (rho_up - rho_low);
+			}
+		}
+
+		h = h_upper - h_lower;
+		double w_max = 0;
+		int h_width_max = 0;
+		for (int z = int(h_lower); z < int(h_upper); z++){
+			double left_bound = 0, right_bound = 0;
+			for (int x = 0; x < xdim_1; x++){
+				double rho_left = rho.at(x, mid_y, z);
+				double rho_right = rho.at(x + 1, mid_y, z);
+				if (rho_left < phase_interface_rho && rho_right >= phase_interface_rho){
+					left_bound = double(x) + (phase_interface_rho - rho_left) / (rho_right - rho_left);
+				}
+				if (rho_left >= phase_interface_rho && rho_right < phase_interface_rho){
+					right_bound = double(x) + (phase_interface_rho - rho_left) / (rho_right - rho_left);
+				}
+			}
+			double width = right_bound - left_bound;
+			if (width > w_max){
+				w_max = width;
+				h_width_max = z;
+			}
+		}
+
+		for (int x = 0; x < xdim_1; x++){
+			double rho_left = rho.at(x, mid_y, int(h_lower));
+			double rho_right = rho.at(x + 1, mid_y, int(h_lower));
+			if (rho_left < phase_interface_rho && rho_right >= phase_interface_rho){
+				btm_left_bound = double(x) + (phase_interface_rho - rho_left) / (rho_right - rho_left);
+			}
+			if (rho_left >= phase_interface_rho && rho_right < phase_interface_rho){
+				btm_right_bound = double(x) + (phase_interface_rho - rho_left) / (rho_right - rho_left);
+			}
+		}
+		double btm_width = btm_right_bound - btm_left_bound;
+		
+
+		double top_x = mid_x;
+		double top_z = h_upper;
+
+		double left_x = mid_y - w_max / 2;
+		double left_z = h_width_max;
+
+		double left_avg_x = (left_x + top_x) / 2;
+		double left_avg_z = (left_z + top_z) / 2;
+
+		double right_x = mid_y + w_max / 2;
+		double right_z = h_width_max;
+
+		double right_avg_x = (right_x + top_x) / 2;
+		double right_avg_z = (right_z + top_z) / 2;
+		
+		double k1 = -(top_x - left_x) / (top_z - left_z);
+		double k2 = -(top_x - right_x) / (top_z - right_z);
+
+		double center_x = (right_avg_z - left_avg_z + k1 * left_avg_x - k2 * right_avg_x) / (k1 - k2);
+		double center_z = k1 * (center_x - left_avg_x) + left_avg_z;
+
+		
+
+		double radius = h_upper - center_z;
+		double angle;
+		const double pi = 3.1415926;
+		cout << "hp: " << abs(h_lower - center_z) << " r " << radius << endl;
+		if (center_z < h_lower)// < 90
+		{
+			angle = pi / 2 - asin((h_lower - center_z) / radius);
+		}
+		else{
+			angle = pi / 2 + asin((center_z - h_lower) / radius);
+		}
+
+		
+		angle = angle / pi * 180.0;
+		return angle;
+	}
+
 
 	void output(int m){
 		ostringstream name;
-		name << "cavity_" << m << ".data";
+		name << "gs"<<floor_gs<<"_" << m << ".data";
 		ofstream out(name.str().c_str(), ofstream::binary);
 
 		//out << "Title = \"LBM Lid Driven Flow\"\n" << endl;
@@ -527,7 +641,7 @@ public:
 			*/
 		for (int j = 0; j < zdim; j++)
 			for (int i = 0; i < xdim; i++)
-				out.write((char*)&rho.at(i, 20, j),sizeof(double));
+				out.write((char*)&rho.at(i, ydim/2, j),sizeof(double));
 	}
 
 //private:
@@ -548,6 +662,8 @@ public:
 
 	double rho_liquid;
 	double rho_gas;
+
+	double floor_gs;
 
 	double TonTc;
 	const double Tc = 0.0729;

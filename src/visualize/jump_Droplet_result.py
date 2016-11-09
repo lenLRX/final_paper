@@ -4,11 +4,12 @@ import numpy as np
 import math
 import struct
 #Droplet_Dynamics_on_Surface
-data = open('../JumpDroplet_example/JumpDroplet_example/result_5600.dat','r')
+data = open('../JumpDroplet_example/JumpDroplet_example/result_300.dat','r')
 dummy = data.readline()
 dummy = data.readline()
 dummy = data.readline()
-size = (101,101,101)
+size = (251,151,201)
+#zyx
 
 fieldU = np.zeros(size,dtype=float)
 fieldV = np.zeros(size,dtype=float)
@@ -37,7 +38,7 @@ print np.max(speedfield)
 print np.min(speedfield)
 print speedfield
 #plt.quiver(fieldU,fieldV,scale = 3)
-C = plt.contour(speedfield[50],10)
+C = plt.contour(speedfield[125],10)
 plt.clabel(C)
 
 #Y, X = np.mgrid[0:257, 0:257]

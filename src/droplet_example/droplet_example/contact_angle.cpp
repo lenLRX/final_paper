@@ -439,9 +439,9 @@ void output(int m)  //Êä³ö
 	ostringstream name;
 	name << "cavity_" << m << ".data";
 	ofstream out(name.str().c_str(), ofstream::binary);
-	for (j = 0; j<LY; j++)
-		for (i = 0; i<LX; i++){
-			out.write((char*)&n0[i][j][26], sizeof(double));
+	for (z = 0; z<LZ; z++)
+		for (j = 0; j<LY; j++){
+			out.write((char*)&n0[X0][j][z], sizeof(double));
 		}
 
 }
