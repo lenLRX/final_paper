@@ -1,5 +1,5 @@
 import matplotlib.pyplot as plt
-
+import numpy as np
 f = open('../SRCone/SRCone/contact_angle.record','r')
 x=[]
 y=[]
@@ -13,4 +13,7 @@ for line in  f.readlines():
 f.close()
 plt.plot(x,y,marker="o")
 #plt.scatter(x,y)
+
+print np.polyfit(x,y,1)
+
 plt.show()

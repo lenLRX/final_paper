@@ -84,6 +84,7 @@
     <ClInclude Include="Lattice2D.h" />
     <ClInclude Include="Lattice3D.h" />
     <ClInclude Include="Lattice4D.h" />
+    <ClInclude Include="LatticeMaterial.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />

@@ -11,15 +11,16 @@ O-------x
 
 using namespace std;
 
+template<typename T>
 class Lattice2D
 {
 public:
 	Lattice2D(int xdim, int ydim) :xdim(xdim), ydim(ydim){
 		total_size = xdim * ydim;
-		buffer = new double[total_size];
+		buffer = new T[total_size];
 		clean();
 	}
-	inline double& at(int x, int y){
+	inline T& at(int x, int y){
 		assert(x < xdim);
 		assert(y < ydim);
 		return *(buffer + y * xdim + x);
@@ -36,6 +37,6 @@ private:
 	int xdim;
 	int ydim;
 	int total_size;
-	double* buffer;
+	T* buffer;
 };
 #endif//__LATTICE2D_H__

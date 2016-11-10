@@ -4,7 +4,7 @@ import numpy as np
 import math
 import struct
 #Droplet_Dynamics_on_Surface
-data = open('../SRCone/SRCone/gs-0.2_200.data','rb')
+data = open('../SRCone/SRCone/gs-2_5100.data','rb')
 
 size = (40,50)
 

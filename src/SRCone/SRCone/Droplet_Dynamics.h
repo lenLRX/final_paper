@@ -3,6 +3,7 @@
 #include "Lattice4D.h"
 #include "Lattice3D.h"
 #include "Lattice2D.h"
+#include "LatticeMaterial.h"
 #include <cmath>
 #include <iostream>
 #include <fstream>
@@ -28,7 +29,8 @@ public:
 		V(xdim, ydim, zdim), V0(xdim, ydim, zdim), VF(xdim, ydim, zdim),
 		W(xdim, ydim, zdim), W0(xdim, ydim, zdim), WF(xdim, ydim, zdim),
 		rho(xdim, ydim, zdim), Force(xdim,ydim,zdim,3),F(xdim, ydim, zdim, 19),
-		F0(xdim, ydim, zdim, 19), FC(xdim, ydim, zdim, 19),gs(xdim, ydim){
+		F0(xdim, ydim, zdim, 19), FC(xdim, ydim, zdim, 19),gs(xdim, ydim, zdim),
+		material(xdim,ydim,zdim){
 		w[0] = 1.0 / 3.0;
 		fill(w + 1, w + 7, 1.0 / 18.0);
 		fill(w + 7, w + 19, 1.0 / 36.0);
@@ -84,34 +86,47 @@ public:
 	void init(){
 		//init solids;
 #pragma omp parallel for
-		for (int y = 0; y < ydim; y++){
-			for (int x = 0; x < xdim;x++){
-				gs.at(x,y) = floor_gs;
-				/*
-				if (x < (xdim - 12) / 2 || x >(xdim + 12))
-					gs.at(x, y) = -0.25;
-				else
-					gs.at(x, y) = -0.25;
-				*/
+		for (int z = 0; z < zdim; z++){
+			for (int y = 0; y < ydim; y++){
+				for (int x = 0; x < xdim; x++){
+					if (z == 0 || z == zdim_1)
+						material.at(x, y, z) = Material::solid;
+					else
+						material.at(x, y, z) = Material::fluid;
+				}
 			}
 		}
+#pragma omp parallel for
+		for (int z = 0; z < zdim; z++){
+			for (int y = 0; y < ydim; y++){
+				for (int x = 0; x < xdim; x++){
+					if (material.at(x, y, z) == Material::solid)
+						gs.at(x, y, z) = floor_gs;
+					else
+						gs.at(x, y, z) = 0;
+				}
+			}
+		}
+		
 		//init droplet
 #pragma omp parallel for
 		for (int x = 0; x < xdim; x++){
 			for (int y = 0; y < ydim; y++){
 				for (int z = 0; z < zdim; z++){
-					/*
+					
 					if (sqrt((x - xdim / 2) * (x - xdim / 2)
 						+ (y - ydim / 2) * (y - ydim / 2)
-						+ (z -15) * (z -15)) <= 12){
+						+ (z -13) * (z -13)) <= 12){
 						rho.at(x, y, z) = rho_liquid;
 					}
 					else
 						rho.at(x, y, z) = rho_gas;
-					*/
+					
+					/*
 					rho.at(x,y,z) = 
 						(rho_liquid + rho_gas) / 2.0 
-						- (rho_liquid - rho_gas) / 2.0*tanh(2.0*(sqrt(double((x - xdim / 2)*(x - xdim / 2) + (y - ydim / 2)*(y - ydim / 2) + (z - 14)*(z - 14))) - 12) / 5.0);
+						- (rho_liquid - rho_gas) / 2.0*tanh(2.0*(sqrt(double((x - xdim / 2)*(x - xdim / 2) + (y - ydim / 2)*(y - ydim / 2) + (z - 15)*(z - 15))) - 12) / 5.0);
+						*/
 				}
 			}
 		}
@@ -194,47 +209,49 @@ public:
 	inline double Fs(int x,int y,int z){
 		static double w_const = w[6] + w[12] + w[13] + w[16] + w[17];
 		return -effective_mass(rho.at(x, y, z))
-			* w_const * gs.at(x, y);
+			* w_const * gs.at(x, y, z);
 	}
 
 	void update(){
-		
+		FC.clean();
 #pragma omp parallel for
 		for (int x = 0; x < xdim; x++)
 			for (int y = 0; y < ydim; y++)
 				for (int z = 0; z < zdim; z++){
-					for (int k = 0; k < Q; k++){
-						double temp1 = feq(k, x, y, z);
-						/*
-						FC.at(x, y, z, k) = F.at(x, y, z, k)
-							+ (temp1 - F.at(x, y, z, k)) / tau
+					if (material.at(x,y,z) == Material::fluid)
+						for (int k = 0; k < Q; k++){
+							double temp1 = feq(k, x, y, z);
+							/*
+							FC.at(x, y, z, k) = F.at(x, y, z, k)
+								+ (temp1 - F.at(x, y, z, k)) / tau
 						
-							+ feq(k, x, y, z,
-							UF.at(x, y, z),
-							VF.at(x, y, z),
-							WF.at(x, y, z))
-							- temp1;
-							*/
-						FC.at(x, y, z, k) = feq(k, x, y, z,
-							UF.at(x, y, z),
-							VF.at(x, y, z),
-							WF.at(x, y, z));
+								+ feq(k, x, y, z,
+								UF.at(x, y, z),
+								VF.at(x, y, z),
+								WF.at(x, y, z))
+								- temp1;
+								*/
+							FC.at(x, y, z, k) = feq(k, x, y, z,
+								UF.at(x, y, z),
+								VF.at(x, y, z),
+								WF.at(x, y, z));
 							
-					}
+						}
 				}
-
+		F.clean();
 #pragma omp parallel for
 		for (int x = 0; x < xdim; x++)
 			for (int y = 0; y < ydim; y++)
 				for (int z = 0; z < zdim; z++){
-
+					if (material.at(x, y, z) == Material::fluid)
 					for (int k = 0; k < Q; k++){
 						int xp = x - e[k][0];
 						int yp = y - e[k][1];
 						int zp = z - e[k][2];
 
 						if (zp < 0 || zp > zdim_1){
-							F.at(x, y, z, k) = FC.at(x, y, z, r[k]);
+							//F.at(x, y, z, k) = FC.at(x, y, z, r[k]);
+							continue;
 						}
 						else{
 							if (xp < 0)
@@ -246,8 +263,10 @@ public:
 								yp = ydim_1;
 							if (yp > ydim_1)
 								yp = 0;
-
-							F.at(x, y, z, k) = FC.at(xp, yp, zp, k);
+							if (material.at(xp,yp,zp) == Material::fluid)
+							    F.at(x, y, z, k) = FC.at(xp, yp, zp, k);
+							else
+								F.at(x, y, z, k) = FC.at(x, y, z, r[k]);
 						}
 
 						
@@ -258,128 +277,69 @@ public:
 		for (int x = 0; x < xdim; x++)
 			for (int y = 0; y < ydim; y++)
 				for (int z = 0; z < zdim; z++){
-					for (int k = 0; k < Q; k++){
-						rho.at(x, y, z) += F.at(x, y, z, k);
-					}
-					/*
-					if (rho.at(x, y, z) < 0){
-						cout << "x: " << x << " y: " << y << " z:" << z << endl;
-						cout << "rho: " << rho.at(x, y, z) << endl;
-						cout << "U: " << U.at(x, y, z)
-							<< " V: " << V.at(x, y, z)
-							<< " W: " << W.at(x, y, z) << endl;
-						cout << "UF: " << UF.at(x, y, z)
-							<< " VF: " << VF.at(x, y, z)
-							<< " WF: " << WF.at(x, y, z) << endl;
-
-						cout << "Force: " << Force.at(x, y, z, 0)
-							<< " Force: " << Force.at(x, y, z, 1)
-							<< " Force: " << Force.at(x, y, z, 2) << endl;
-						for (int k = 0; k < Q; k++)
-							cout << "k: " << k << " F: " << F.at(x, y, z, k) << endl;
-						cout << "error" << endl;
-					}
-					*/
+					if (material.at(x, y, z) == Material::fluid)
+						for (int k = 0; k < Q; k++){
+							rho.at(x, y, z) += F.at(x, y, z, k);
+						}
 				}
 					
 
 		
-		double max = -1;
-		int max_x, max_y, max_z;
-		double max_rho;
 		Force.clean();
 #pragma omp parallel for
 		for (int x = 0; x < xdim; x++)
 			for (int y = 0; y < ydim; y++)
 				for (int z = 0; z < zdim; z++){
-					for (int k = 1; k < Q; k++){
+					if (material.at(x, y, z) == Material::fluid){
+						for (int k = 1; k < Q; k++){
 
-						int xp = x + e[k][0];
-						int yp = y + e[k][1];
-						int zp = z + e[k][2];
+							int xp = x + e[k][0];
+							int yp = y + e[k][1];
+							int zp = z + e[k][2];
 
-						if (zp < 0)
-							continue;
-						if (zp > zdim_1)
-							continue;
+							if (zp < 0)
+								continue;
+							if (zp > zdim_1)
+								continue;
 
-						if (xp < 0)
-							xp = xdim_1;
-						if (xp > xdim_1)
-							xp = 0;
-						if (yp < 0)
-							yp = ydim_1;
-						if (yp > ydim_1)
-							yp = 0;
+							if (xp < 0)
+								xp = xdim_1;
+							if (xp > xdim_1)
+								xp = 0;
+							if (yp < 0)
+								yp = ydim_1;
+							if (yp > ydim_1)
+								yp = 0;
 
-						double temp1;
-						double temp2;
-						double m_x = effective_mass(rho.at(xp, yp, zp));
-						if (k < 7){
-							temp1 = g1 * m_x;
-							temp2 = Fint_const_g1 * m_x * m_x;
-						}
-						else{
-							temp1 = g2 * m_x;
-							temp2 = Fint_const_g2 * m_x * m_x;
-						}
-						double effective_mass_here = effective_mass(rho.at(x, y, z));
-						temp1 = temp1 * neg_beta * effective_mass_here;
+							double temp1;
+							double temp2;
+							double m_x = effective_mass(rho.at(xp, yp, zp));
+							if (k < 7){
+								temp1 = g1 * m_x;
+								temp2 = Fint_const_g1 * m_x * m_x;
+							}
+							else{
+								temp1 = g2 * m_x;
+								temp2 = Fint_const_g2 * m_x * m_x;
+							}
+							double effective_mass_here = effective_mass(rho.at(x, y, z));
+							temp1 = temp1 * neg_beta * effective_mass_here;
 
-						Force.at(x, y, z, 0) += e[k][0] * (temp1 + temp2);
-						Force.at(x, y, z, 1) += e[k][1] * (temp1 + temp2);
-						Force.at(x, y, z, 2) += e[k][2] * (temp1 + temp2);
+							Force.at(x, y, z, 0) += e[k][0] * (temp1 + temp2);
+							Force.at(x, y, z, 1) += e[k][1] * (temp1 + temp2);
+							Force.at(x, y, z, 2) += e[k][2] * (temp1 + temp2);
 
-						if (zp == 0){
-							double _gs = gs.at(x, y);
-							double _temp = w[k] * effective_mass_here * _gs *18;
+							double _gs = gs.at(xp, yp, zp);
+							double _temp = w[k] * effective_mass_here * _gs * 18;
 							Force.at(x, y, z, 0) -= e[k][0] * _temp;
 							Force.at(x, y, z, 1) -= e[k][1] * _temp;
 							Force.at(x, y, z, 2) -= e[k][2] * _temp;
 						}
-					}
 
-					Force.at(x, y, z, 2) += Fg(rho.at(x, y, z));
-
-					/*
-					if (Force.at(x, y, z, 0) > max){
-						max = Force.at(x, y, z, 0);
-						max_x = x;
-						max_y = y;
-						max_z = z;
-						max_rho = rho.at(x,y,z);
+						Force.at(x, y, z, 2) += Fg(rho.at(x, y, z));
 					}
-					*/
-						
+					
 				}
-		/*
-		cout << "max force: " << max << endl;
-		cout << " rho: "<< max_rho <<" x: " << max_x << " y: " << max_y << " z: " << max_z << endl;
-		cout << "rho: " << rho.at(max_x, max_y, max_z) << endl;
-		cout << "U: " << U.at(max_x, max_y, max_z)
-			<< " V: " << V.at(max_x, max_y, max_z)
-			<< " W: " << W.at(max_x, max_y, max_z) << endl;
-		cout << "UF: " << UF.at(max_x, max_y, max_z)
-			<< " VF: " << VF.at(max_x, max_y, max_z)
-			<< " WF: " << WF.at(max_x, max_y, max_z) << endl;
-
-		cout << "Force: " << Force.at(max_x, max_y, max_z, 0)
-			<< " Force: " << Force.at(max_x, max_y, max_z, 1)
-			<< " Force: " << Force.at(max_x, max_y, max_z, 2) << endl;
-		for (int k = 0; k < Q; k++)
-			cout << "k: " << k << " F: " << F.at(max_x, max_y, max_z, k) << endl;
-			*/
-		
-		/*
-		//bottom boundary
-#pragma omp parallel for
-		for (int x = 0; x < xdim; x++)
-			for (int y = 0; y < ydim; y++){
-				int z = 0;
-				Force.at(x, y, z, 2) += Fs(x, y, z); 
-			}
-		//bottom boundary ends
-		*/
 
 
 		
@@ -397,66 +357,33 @@ public:
 		for (int x = 0; x < xdim; x++)
 			for (int y = 0; y < ydim; y++)
 				for (int z = 0; z < zdim; z++){
-					double temp_u = 0;
-					double temp_v = 0;
-					double temp_w = 0;
-					for (int k = 0; k < Q; k++){
-						temp_u += e[k][0] * F.at(x, y, z, k);
-						temp_v += e[k][1] * F.at(x, y, z, k);
-						temp_w += e[k][2] * F.at(x, y, z, k);
-					}
+					if (material.at(x, y, z) == Material::fluid){
+						double temp_u = 0;
+						double temp_v = 0;
+						double temp_w = 0;
+						for (int k = 0; k < Q; k++){
+							temp_u += e[k][0] * F.at(x, y, z, k);
+							temp_v += e[k][1] * F.at(x, y, z, k);
+							temp_w += e[k][2] * F.at(x, y, z, k);
+						}
 
-					
 
-					double _rho = rho.at(x, y, z);
-					
-					
-						
-					U.at(x, y, z) = temp_u / _rho;
-					V.at(x, y, z) = temp_v / _rho;
-					W.at(x, y, z) = temp_w / _rho;
 
-					
-					if (false && abs(U.at(x, y, z)) > 10){
-						cout << "x: " << x << " y: " << y << " z:" << z << endl;
-						cout << "rho: " << rho.at(x, y, z) << endl;
-						cout << "U: " << U.at(x, y, z)
-							<< " V: " << V.at(x, y, z)
-							<< " W: " << W.at(x, y, z) << endl;
-						cout << "UF: " << UF.at(x, y, z)
-							<< " VF: " << VF.at(x, y, z)
-							<< " WF: " << WF.at(x, y, z) << endl;
+						double _rho = rho.at(x, y, z);
 
-						cout << "Force: " << Force.at(x, y, z, 0)
-							<< " Force: " << Force.at(x, y, z, 1)
-							<< " Force: " << Force.at(x, y, z, 2) << endl;
-						for (int k = 0; k < Q; k++)
-							cout << "k: " << k << " F: " <<F.at(x, y, z, k) << endl;
-						cout << "error" << endl;
+
+
+						U.at(x, y, z) = temp_u / _rho;
+						V.at(x, y, z) = temp_v / _rho;
+						W.at(x, y, z) = temp_w / _rho;
+
+
+
+						UF.at(x, y, z) = U.at(x, y, z) + Force.at(x, y, z, 0) / _rho;
+						VF.at(x, y, z) = V.at(x, y, z) + Force.at(x, y, z, 1) / _rho;
+						WF.at(x, y, z) = W.at(x, y, z) + Force.at(x, y, z, 2) / _rho;
 					}
 					
-					
-					
-
-					UF.at(x, y, z) = U.at(x, y, z) + Force.at(x, y, z, 0) / _rho;
-					VF.at(x, y, z) = V.at(x, y, z) + Force.at(x, y, z, 1) / _rho;
-					WF.at(x, y, z) = W.at(x, y, z) + Force.at(x, y, z, 2) / _rho;
-
-					/*
-					if (x == 52 && y == 20 && z == 15){
-						cout << "error" << endl;
-						cout << "x:" << x << " y:" << y << " z:" << z << endl;
-						cout << "U: (" << U.at(x, y, z) << " , "
-							<< V.at(x, y, z) << " , "
-							<< W.at(x, y, z) << " ) " << endl;
-						cout << "UF: (" << UF.at(x, y, z) << " , "
-							<< VF.at(x, y, z) << " , "
-							<< WF.at(x, y, z) << " ) " << endl;
-						for (int k = 0; k < Q; k++)
-							cout << "k: " << k << " F: " << F.at(x, y, z, k) << endl;
-						cout << "pause" << endl;
-					}
-					*/
 				}
 				
 	}
@@ -532,8 +459,8 @@ public:
 		double phase_interface_rho = 0.5*(rho_gas + rho_liquid);
 		int mid_x = xdim / 2;
 		int mid_y = ydim / 2;
-		double h_upper;//upper bound of droplet
-		double h_lower;
+		double h_upper = double(zdim_1);//upper bound of droplet
+		double h_lower = 1.0;
 		double h;//height of droplet
 		double btm_left_bound = 0, btm_right_bound = 0;
 		for (int z = 0; z < zdim_1; z++){
@@ -608,13 +535,18 @@ public:
 		double radius = h_upper - center_z;
 		double angle;
 		const double pi = 3.1415926;
-		cout << "hp: " << abs(h_lower - center_z) << " r " << radius << endl;
-		if (center_z < h_lower)// < 90
+		cout << "center: " << center_z << " h_lower: " << h_lower <<" hp: " << abs(h_lower - center_z) << " r " << radius << endl;
+		cout << "asin(" << abs(h_lower - center_z) / radius << ") = " << asin(abs(center_z - h_lower) / radius) << endl;
+
+		if (abs(abs(h_lower - center_z) / radius - 1) < 0.001){
+			angle = pi;
+		}
+		else if (center_z < h_lower)// < 90
 		{
-			angle = pi / 2 - asin((h_lower - center_z) / radius);
+			angle = pi / 2 - asin(abs(h_lower - center_z) / radius);
 		}
 		else{
-			angle = pi / 2 + asin((center_z - h_lower) / radius);
+			angle = pi / 2 + asin(abs(center_z - h_lower) / radius);
 		}
 
 		
@@ -675,21 +607,22 @@ public:
 	int xdim_1, ydim_1, zdim_1;
 
 
-	Lattice3D U;//xdirection
-	Lattice3D U0;//xdirection
-	Lattice3D UF;//xdirection
-	Lattice3D V;//ydirection
-	Lattice3D V0;//ydirection
-	Lattice3D VF;//ydirection
-	Lattice3D W;//zdirection
-	Lattice3D W0;//zdirection
-	Lattice3D WF;//zdirection
-	Lattice3D rho;
+	Lattice3D<double> U;//xdirection
+	Lattice3D<double> U0;//xdirection
+	Lattice3D<double> UF;//xdirection
+	Lattice3D<double> V;//ydirection
+	Lattice3D<double> V0;//ydirection
+	Lattice3D<double> VF;//ydirection
+	Lattice3D<double> W;//zdirection
+	Lattice3D<double> W0;//zdirection
+	Lattice3D<double> WF;//zdirection
+	Lattice3D<double> rho;
+	Lattice3D<Material> material;
 	Lattice4D Force;
 	Lattice4D F;
 	Lattice4D FC;
 	Lattice4D F0;
-	Lattice2D gs;
+	Lattice3D<double> gs;
 };
 
 #endif//__DROPLET_DYNAMICS_H__
