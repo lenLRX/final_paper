@@ -30,7 +30,7 @@ int main(){
 	ofstream result_file("contact_angle.record");
 	int total = 20;
 	for (int r = 0; r < total; r++){
-		double gs =  -1.0 - r * 0.1;
+		double gs =  -2.5 - r * 0.1;
 		Droplet_Dynamics model(50, 50, 40,gs);
 		double last_contact_angle = 0;
 		double last_model_error = 0;

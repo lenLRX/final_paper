@@ -89,7 +89,8 @@ public:
 		for (int z = 0; z < zdim; z++){
 			for (int y = 0; y < ydim; y++){
 				for (int x = 0; x < xdim; x++){
-					if (z == 0 || z == zdim_1)
+					if (z == 0 || z == zdim_1 || (x - xdim / 2) * (x - xdim / 2)
+						+ (y - ydim / 2) * (y - ydim / 2) <=  z*z / 9)
 						material.at(x, y, z) = Material::solid;
 					else
 						material.at(x, y, z) = Material::fluid;
@@ -100,7 +101,7 @@ public:
 		for (int z = 0; z < zdim; z++){
 			for (int y = 0; y < ydim; y++){
 				for (int x = 0; x < xdim; x++){
-					if (material.at(x, y, z) == Material::solid)
+					if (material.at(x, y, z) == Material::solid && z != zdim_1 && z!= 0)
 						gs.at(x, y, z) = floor_gs;
 					else
 						gs.at(x, y, z) = 0;
@@ -113,14 +114,16 @@ public:
 		for (int x = 0; x < xdim; x++){
 			for (int y = 0; y < ydim; y++){
 				for (int z = 0; z < zdim; z++){
-					
-					if (sqrt((x - xdim / 2) * (x - xdim / 2)
-						+ (y - ydim / 2) * (y - ydim / 2)
-						+ (z -13) * (z -13)) <= 12){
-						rho.at(x, y, z) = rho_liquid;
+					if (material.at(x, y, z) == Material::fluid){
+						if (sqrt((x - xdim / 2) * (x - xdim / 2)
+							+ (y - ydim / 2) * (y - ydim / 2)
+							+ (z - 13) * (z - 13)) <= 12){
+							rho.at(x, y, z) = rho_liquid;
+						}
+						else
+							rho.at(x, y, z) = rho_gas;
 					}
-					else
-						rho.at(x, y, z) = rho_gas;
+					
 					
 					/*
 					rho.at(x,y,z) = 
@@ -135,9 +138,13 @@ public:
 #pragma omp parallel for
 		for (int x = 0; x < xdim; x++)
 			for (int y = 0; y < ydim; y++)
-				for (int z = 0; z < zdim; z++)
-					for (int k = 0; k < Q; k++)
-						F.at(x, y, z, k) = feq(k, x, y, z);
+				for (int z = 0; z < zdim; z++){
+					if (material.at(x, y, z) == Material::fluid){
+						for (int k = 0; k < Q; k++)
+							F.at(x, y, z, k) = feq(k, x, y, z);
+					}
+				}
+					
 
 	}
 
@@ -203,7 +210,7 @@ public:
 	}
 
 	inline double Fg(double _rho){
-		return -5e-6 * _rho;
+		return -5e-9 * _rho;
 	}
 
 	inline double Fs(int x,int y,int z){
