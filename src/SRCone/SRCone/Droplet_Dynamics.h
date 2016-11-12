@@ -56,7 +56,8 @@ public:
 		e[18][0] = 0.0;  e[18][1] = -1.0;  e[18][2] = 1.0;//
 
 		rho_liquid = 6.3989;
-		rho_gas = 0.3797;
+		//rho_gas = 0.3797;
+		rho_gas = 0.7797;
 
 		floor_gs = gs;
 
@@ -246,7 +247,7 @@ public:
 						}
 				}
 		F.clean();
-#pragma omp parallel for
+//#pragma omp parallel for
 		for (int x = 0; x < xdim; x++)
 			for (int y = 0; y < ydim; y++)
 				for (int z = 0; z < zdim; z++){
@@ -272,8 +273,94 @@ public:
 								yp = 0;
 							if (material.at(xp,yp,zp) == Material::fluid)
 							    F.at(x, y, z, k) = FC.at(xp, yp, zp, k);
-							else
-								F.at(x, y, z, k) = FC.at(x, y, z, r[k]);
+							else{
+								if ((zp == 0 && (xp - xdim / 2) * (xp - xdim / 2)
+									+ (yp - ydim / 2) * (yp - ydim / 2) > zp*zp / 9)|| (zp == zdim_1 && (xp - xdim / 2) * (xp - xdim / 2)
+									+ (yp - ydim / 2) * (yp - ydim / 2) > zp*zp / 9)){
+									F.at(x, y, z, k) = FC.at(x, y, z, r[k]);
+								}
+								else{
+									double local_x = (x - xdim / 2);
+									double local_y = (y - ydim / 2);
+									double q = 0;
+									double a = abs(e[k][0]) + abs(e[k][1]) - abs(e[k][2]) / 9.0;
+									double b = 2 * e[k][0] * local_x + 2 * e[k][1] * local_y - 2.0 / 9.0 * e[k][2] * z;
+									double c = local_x * local_x + local_y * local_y - z * z / 9.0;
+									double delta = (b * b - 4 * a * c);
+									if (delta < 0){
+										cout << "xp: " << xp << " yp: " << yp << " zp: " << zp << endl;
+										cout << "x: " << x << " y: " << y << " z: " << z << endl;
+										cout << "no solution" << endl;
+										throw 0;
+									}
+									double sqrt_delta = sqrt(delta);
+									double t1 = (-b + sqrt_delta) / (2 * a);
+									double t2 = (-b - sqrt_delta) / (2 * a);
+									const double dig = sqrt(abs(e[k][0]) + abs(e[k][1]) + abs(e[k][2]));
+									if (t1 < 0 && t1 >= -dig - 1e-5){
+										q = - t1 / dig;
+									}
+									else if (t2 < 0 && t2 >= -dig - 1e-5){
+										q = - t2 / dig;
+									}
+									else if (t1 == 0 || t2 == 0){
+										F.at(x, y, z, k) = FC.at(x, y, z, r[k]);
+										continue;
+									}
+									else{
+										cout << "xp: " << xp << " yp: " << yp << " z5p: " << zp << endl;
+										cout << "x: " << x << " y: " << y << " z: " << z << endl;
+										cout << "error: t1: " << t1 << " t2: " << t2 << endl;
+										throw 0;
+									}
+
+									int xpp = x + e[k][0];
+									int ypp = y + e[k][1];
+									int zpp = z + e[k][2];
+
+									if (xpp < 0)
+										xpp = xdim_1;
+									if (xpp > xdim_1)
+										xpp = 0;
+
+									if (ypp < 0)
+										ypp = ydim_1;
+									if (ypp > ydim_1)
+										ypp = 0;
+
+									if (q < 0.5){
+										
+
+
+										int xppp = x + 2 * e[k][0];
+										int yppp = y + 2 * e[k][1];
+										int zppp = z + 2 * e[k][2];
+
+										if (xppp < 0)
+											xppp += xdim;
+										if (xppp > xdim_1)
+											xppp -= xdim;
+
+										if (yppp < 0)
+											yppp += ydim;
+										if (yppp > ydim_1)
+											yppp -= ydim;
+
+
+										//F.at(x, y, z, k) = 2 * q * FC.at(x, y, z, r[k]) + (1 - 2 * q) * FC.at(xpp,ypp,zpp,r[k]);
+										F.at(x, y, z, k) = q *(1 + 2*q) * FC.at(x, y, z, r[k]) + (1 - 4 * q * q) * FC.at(xpp, ypp, zpp, r[k])
+											- q * (1 - 2 * q) * FC.at(xppp, yppp, zppp, r[k]);
+									}
+									else{
+										//F.at(x, y, z, k) = 0.5 / q * FC.at(x, y, z, r[k]) + (1 - 0.5 / q) * FC.at(x, y, z, k);
+										F.at(x, y, z, k) = 1 / (q*(2*q + 1)) * FC.at(x, y, z, r[k]) + (2 * q - 1) / q * FC.at(x, y, z, k)
+											+ (1 - 2 * q) / (1 + 2 * q) * FC.at(xpp, ypp, zpp, r[k]);
+									}
+									//cout << "q: " << q << "F: " << F.at(x, y, z, k) << " FC: " << FC.at(x,y,z,k) << endl;
+								}
+								
+							}
+								
 						}
 
 						

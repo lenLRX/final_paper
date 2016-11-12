@@ -30,13 +30,13 @@ int main(){
 	ofstream result_file("contact_angle.record");
 	int total = 20;
 	for (int r = 0; r < total; r++){
-		double gs =  -2.5 - r * 0.1;
-		Droplet_Dynamics model(50, 50, 40,gs);
+		double gs =  -2.0 - r * 0.1;
+		Droplet_Dynamics model(80, 80, 80,gs);
 		double last_contact_angle = 0;
 		double last_model_error = 0;
 		for (int i = 0;; i++){
 			model.update();
-			if (i % 200 == 0)
+			if (i % 100 == 0)
 			{
 				cout << "gs: " << gs << " round:" << i << endl;
 				double model_error = model.error();
@@ -57,7 +57,7 @@ int main(){
 				}
 					
 			}
-			if (i % 1000 == 0)
+			if (i % 100 == 0)
             {
 				model.output(i);
 			}

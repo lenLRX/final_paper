@@ -4,9 +4,9 @@ import numpy as np
 import math
 import struct
 #Droplet_Dynamics_on_Surface
-data = open('../SRCone/SRCone/gs-2.5_46000.data','rb')
+data = open('../SRCone/SRCone/gs-2.5_100.data','rb')
 
-size = (40,50)
+size = (40,80)
 
 fieldU = np.zeros(size,dtype=float)
 fieldV = np.zeros(size,dtype=float)
