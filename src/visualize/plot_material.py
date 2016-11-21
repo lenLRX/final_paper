@@ -3,8 +3,8 @@ from matplotlib.pyplot import cm
 import numpy as np
 import math
 import struct
-#Droplet_Dynamics_on_Surface
-data = open('../SRCone/SRCone/gs-1_190.data','rb')
+
+data = open('../SRCone/SRCone/lattice_attr','rb')
 
 size = (80,160)
 
@@ -20,11 +20,11 @@ for i in xrange(size[0]):
     for j in xrange(size[1]):
         if i == size[0] - 1 or i == 0 or abs(j - size[1]/2)**2 <= i*i /64.0:
             solid[i][j] = 0.0
-        p = data.read(8)
+        p = data.read(4)
         if(p == ''):
             print p
             print (i,j)
-        pair = struct.unpack('d',p)
+        pair = struct.unpack('i',p)
         rho[i][j] = pair[0]
 
 
@@ -40,10 +40,8 @@ fig_quiver = fig.add_subplot(2,1,1,xlim = (0,256),ylim = (0,256))
 fig_contour = fig.add_subplot(2,1,1,xlim = (0,256),ylim = (0,256))
 '''
 print np.max(rho)
-C = plt.contour(rho)#,levels = [3.4])
-plt.clabel(C)
 
-plt.imshow(solid,cmap=plt.get_cmap("gray"),interpolation="none")
+plt.imshow(rho,cmap=plt.get_cmap("gray"),interpolation="none")
 
 #Y, X = np.mgrid[0:257, 0:257]
 #plt.streamplot(X,Y,fieldU,fieldV,density=3)

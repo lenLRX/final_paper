@@ -30,6 +30,10 @@ public:
 	}
 
 	inline double& at(int x1, int x2, int x3, int x4){
+		assert(x1 >= 0);
+		assert(x2 >= 0);
+		assert(x3 >= 0);
+		assert(x4 >= 0);
 		assert(x1 < dim1);
 		assert(x2 < dim2);
 		assert(x3 < dim3);

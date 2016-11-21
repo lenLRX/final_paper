@@ -9,6 +9,8 @@
 #include <fstream>
 #include <sstream>
 
+const double Zco = 64;
+
 int e[19][3];
 const int r[19] = { 0, 2, 1, 4, 3, 6, 5, 8, 7, 10, 9, 12, 11, 14, 13, 16, 15, 18, 17 };
 
@@ -55,14 +57,14 @@ public:
 		e[17][0] = 0.0;  e[17][1] = 1.0;  e[17][2] = -1.0;//
 		e[18][0] = 0.0;  e[18][1] = -1.0;  e[18][2] = 1.0;//
 
-		rho_liquid = 6.3989;
+		rho_liquid = 8.3989;
 		//rho_gas = 0.3797;
-		rho_gas = 0.7797;
+		rho_gas = 0.3797;
 
 		floor_gs = gs;
 
 
-		TonTc = 0.86;
+		TonTc = 0.86;//86
 		T = TonTc * Tc;
 		g = -1 / T;
 		
@@ -91,7 +93,7 @@ public:
 			for (int y = 0; y < ydim; y++){
 				for (int x = 0; x < xdim; x++){
 					if (z == 0 || z == zdim_1 || (x - xdim / 2) * (x - xdim / 2)
-						+ (y - ydim / 2) * (y - ydim / 2) <=  z*z / 9)
+						+ (y - ydim / 2) * (y - ydim / 2) <=  z*z / Zco)
 						material.at(x, y, z) = Material::solid;
 					else
 						material.at(x, y, z) = Material::fluid;
@@ -118,8 +120,29 @@ public:
 					if (material.at(x, y, z) == Material::fluid){
 						if (sqrt((x - xdim / 2) * (x - xdim / 2)
 							+ (y - ydim / 2) * (y - ydim / 2)
-							+ (z - 13) * (z - 13)) <= 12){
-							rho.at(x, y, z) = rho_liquid;
+							+ (z - 45) * (z - 45)) <= 30){
+						    
+							if ((x - xdim / 2) * (x - xdim / 2)
+								+ (y - ydim / 2) * (y - ydim / 2) > z*z / Zco + 200){
+								rho.at(x, y, z) = (rho_liquid + rho_gas) / 2.0
+									- (rho_liquid - rho_gas) / 2.0
+									* tanh(2.0*(sqrt(double((x - xdim / 2) * (x - xdim / 2)
+									+ (y - ydim / 2) * (y - ydim / 2) + (z - 45) * (z - 45))) - 20) / 50.0);
+								//rho.at(x, y, z) = rho_liquid;
+								
+							}
+							else{
+								rho.at(x, y, z) = rho_gas;
+								//cout << "wtf" << endl;
+							}
+								
+							
+							/*
+							rho.at(x, y, z) = (rho_liquid + rho_gas) / 2.0 
+								- (rho_liquid - rho_gas) / 2.0 
+								* tanh(2.0*(sqrt(double((x - xdim / 2) * (x - xdim / 2) 
+								+ (y - ydim / 2) * (y - ydim / 2) + (z - 45) * (z - 45))) - 20) / 5.0);
+							*/
 						}
 						else
 							rho.at(x, y, z) = rho_gas;
@@ -150,8 +173,12 @@ public:
 	}
 
 	inline double effective_mass(double _rho){
-		//double temp = PR_EOS(_rho) - _rho / 3;
-		return sqrt(2 * (PR_EOS(_rho) - _rho / 3) / (c0 * g));
+		const double temp = 2 * (PR_EOS(_rho) - _rho / 3) / (c0 * g);
+		if (temp < 0){
+			cout << "error " << endl;
+			throw 0;
+		}
+		return sqrt(temp);
 		//return sqrt(2 * (calc_pressure(_rho) - _rho / 3) / (c0 * g));
 		//return 1 - exp(-_rho);
 	}
@@ -228,7 +255,7 @@ public:
 				for (int z = 0; z < zdim; z++){
 					if (material.at(x,y,z) == Material::fluid)
 						for (int k = 0; k < Q; k++){
-							double temp1 = feq(k, x, y, z);
+							//double temp1 = feq(k, x, y, z);
 							/*
 							FC.at(x, y, z, k) = F.at(x, y, z, k)
 								+ (temp1 - F.at(x, y, z, k)) / tau
@@ -273,45 +300,58 @@ public:
 								yp = 0;
 							if (material.at(xp,yp,zp) == Material::fluid)
 							    F.at(x, y, z, k) = FC.at(xp, yp, zp, k);
+#ifdef INTERPOLATION
 							else{
+								/*
 								if ((zp == 0 && (xp - xdim / 2) * (xp - xdim / 2)
-									+ (yp - ydim / 2) * (yp - ydim / 2) > zp*zp / 9)|| (zp == zdim_1 && (xp - xdim / 2) * (xp - xdim / 2)
-									+ (yp - ydim / 2) * (yp - ydim / 2) > zp*zp / 9)){
+									+ (yp - ydim / 2) * (yp - ydim / 2) > zp*zp / Zco)|| (zp == zdim_1 && (xp - xdim / 2) * (xp - xdim / 2)
+									+ (yp - ydim / 2) * (yp - ydim / 2) > zp*zp / Zco)){//zp*zp / 9
 									F.at(x, y, z, k) = FC.at(x, y, z, r[k]);
+								}*/
+								if (false){
+
 								}
 								else{
 									double local_x = (x - xdim / 2);
 									double local_y = (y - ydim / 2);
 									double q = 0;
-									double a = abs(e[k][0]) + abs(e[k][1]) - abs(e[k][2]) / 9.0;
-									double b = 2 * e[k][0] * local_x + 2 * e[k][1] * local_y - 2.0 / 9.0 * e[k][2] * z;
-									double c = local_x * local_x + local_y * local_y - z * z / 9.0;
+									double a = abs(e[k][0]) + abs(e[k][1]) - abs(e[k][2]) / Zco;
+									double b = 2 * e[k][0] * local_x + 2 * e[k][1] * local_y - 2.0 / Zco * e[k][2] * z;
+									double c = local_x * local_x + local_y * local_y - z * z / Zco;
 									double delta = (b * b - 4 * a * c);
 									if (delta < 0){
+										F.at(x, y, z, k) = FC.at(x, y, z, r[k]);
+										continue;
+										/*
 										cout << "xp: " << xp << " yp: " << yp << " zp: " << zp << endl;
 										cout << "x: " << x << " y: " << y << " z: " << z << endl;
 										cout << "no solution" << endl;
 										throw 0;
+										*/
 									}
 									double sqrt_delta = sqrt(delta);
 									double t1 = (-b + sqrt_delta) / (2 * a);
 									double t2 = (-b - sqrt_delta) / (2 * a);
-									const double dig = sqrt(abs(e[k][0]) + abs(e[k][1]) + abs(e[k][2]));
-									if (t1 < 0 && t1 >= -dig - 1e-5){
-										q = - t1 / dig;
+									//const double dig = sqrt(abs(e[k][0]) + abs(e[k][1]) + abs(e[k][2]));
+									if (t1 < 0 && t1 >= -1 - 1e-5){
+										q = - t1;
 									}
-									else if (t2 < 0 && t2 >= -dig - 1e-5){
-										q = - t2 / dig;
+									else if (t2 < 0 && t2 >= -1 - 1e-5){
+										q = - t2;
 									}
 									else if (t1 == 0 || t2 == 0){
 										F.at(x, y, z, k) = FC.at(x, y, z, r[k]);
 										continue;
 									}
 									else{
+										F.at(x, y, z, k) = FC.at(x, y, z, r[k]);
+										continue;
+										/*
 										cout << "xp: " << xp << " yp: " << yp << " z5p: " << zp << endl;
 										cout << "x: " << x << " y: " << y << " z: " << z << endl;
 										cout << "error: t1: " << t1 << " t2: " << t2 << endl;
 										throw 0;
+										*/
 									}
 
 									int xpp = x + e[k][0];
@@ -347,19 +387,34 @@ public:
 											yppp -= ydim;
 
 
-										//F.at(x, y, z, k) = 2 * q * FC.at(x, y, z, r[k]) + (1 - 2 * q) * FC.at(xpp,ypp,zpp,r[k]);
-										F.at(x, y, z, k) = q *(1 + 2*q) * FC.at(x, y, z, r[k]) + (1 - 4 * q * q) * FC.at(xpp, ypp, zpp, r[k])
-											- q * (1 - 2 * q) * FC.at(xppp, yppp, zppp, r[k]);
+										if (zppp < 0 || zppp > zdim_1){
+											continue;
+											F.at(x, y, z, k) = 2 * q * FC.at(x, y, z, r[k]) + (1 - 2 * q) * FC.at(xpp, ypp, zpp, r[k]);
+										}
+										else{
+											F.at(x, y, z, k) = q *(1 + 2 * q) * FC.at(x, y, z, r[k]) + (1 - 4 * q * q) * FC.at(xpp, ypp, zpp, r[k])
+												- q * (1 - 2 * q) * FC.at(xppp, yppp, zppp, r[k]);
+										}
+										
 									}
 									else{
 										//F.at(x, y, z, k) = 0.5 / q * FC.at(x, y, z, r[k]) + (1 - 0.5 / q) * FC.at(x, y, z, k);
 										F.at(x, y, z, k) = 1 / (q*(2*q + 1)) * FC.at(x, y, z, r[k]) + (2 * q - 1) / q * FC.at(x, y, z, k)
-											+ (1 - 2 * q) / (1 + 2 * q) * FC.at(xpp, ypp, zpp, r[k]);
+											+ (1 - 2 * q) / (1 + 2 * q) * FC.at(xpp, ypp, zpp, k);
+										
 									}
-									//cout << "q: " << q << "F: " << F.at(x, y, z, k) << " FC: " << FC.at(x,y,z,k) << endl;
+									if (false && abs(FC.at(x, y, z, k) - F.at(x, y, z, k)) > 0.01)
+										cout << "q: " << q << " F: " << F.at(x, y, z, k) << " FC: " << FC.at(x, y, z, k) 
+											<< " f[r]" << FC.at(x, y, z, r[k]) << endl;
 								}
 								
 							}
+							// if solid
+#else
+							else{
+								F.at(x, y, z, k) = FC.at(x, y, z, r[k]);
+							}
+#endif
 								
 						}
 
@@ -371,10 +426,25 @@ public:
 		for (int x = 0; x < xdim; x++)
 			for (int y = 0; y < ydim; y++)
 				for (int z = 0; z < zdim; z++){
-					if (material.at(x, y, z) == Material::fluid)
+					if (material.at(x, y, z) == Material::fluid){
 						for (int k = 0; k < Q; k++){
 							rho.at(x, y, z) += F.at(x, y, z, k);
 						}
+						if (rho.at(x, y, z) < 0){
+							cout << "error" << endl;
+
+							cout << "v: " << UF.at(x, y, z) << " " << VF.at(x, y, z) << " " << WF.at(x, y, z) << endl;
+
+							for (int k = 0; k < Q; k++){
+								int xp = x - e[k][0];
+								int yp = y - e[k][1];
+								int zp = z - e[k][2];
+								cout << (material.at(xp, yp, zp) == Material::solid  ? "solid" : "fluid") << "  f.at " << xp << " , " << yp << " , " << zp << " :" << F.at(x, y, z, k) << endl;
+							}
+							cout << "error done" << endl;
+						}
+					}
+						
 				}
 					
 
@@ -405,32 +475,39 @@ public:
 							if (yp > ydim_1)
 								yp = 0;
 
-							double temp1;
-							double temp2;
-							double m_x = effective_mass(rho.at(xp, yp, zp));
-							if (k < 7){
-								temp1 = g1 * m_x;
-								temp2 = Fint_const_g1 * m_x * m_x;
-							}
-							else{
-								temp1 = g2 * m_x;
-								temp2 = Fint_const_g2 * m_x * m_x;
-							}
 							double effective_mass_here = effective_mass(rho.at(x, y, z));
-							temp1 = temp1 * neg_beta * effective_mass_here;
 
-							Force.at(x, y, z, 0) += e[k][0] * (temp1 + temp2);
-							Force.at(x, y, z, 1) += e[k][1] * (temp1 + temp2);
-							Force.at(x, y, z, 2) += e[k][2] * (temp1 + temp2);
+							if (material.at(xp, yp, zp) == Material::fluid){
+								double temp1;
+								double temp2;
+								double m_x = effective_mass(rho.at(xp, yp, zp));
+								if (k < 7){
+									temp1 = g1 * m_x;
+									temp2 = Fint_const_g1 * m_x * m_x;
+								}
+								else{
+									temp1 = g2 * m_x;
+									temp2 = Fint_const_g2 * m_x * m_x;
+								}
+								temp1 = temp1 * neg_beta * effective_mass_here;
 
-							double _gs = gs.at(xp, yp, zp);
-							double _temp = w[k] * effective_mass_here * _gs * 18;
-							Force.at(x, y, z, 0) -= e[k][0] * _temp;
-							Force.at(x, y, z, 1) -= e[k][1] * _temp;
-							Force.at(x, y, z, 2) -= e[k][2] * _temp;
+								Force.at(x, y, z, 0) += e[k][0] * (temp1 + temp2);
+								Force.at(x, y, z, 1) += e[k][1] * (temp1 + temp2);
+								Force.at(x, y, z, 2) += e[k][2] * (temp1 + temp2);
+							}
+							else
+							{
+								double _gs = gs.at(xp, yp, zp);
+								double _temp = w[k] * effective_mass_here * _gs * 18;
+								Force.at(x, y, z, 0) -= e[k][0] * _temp;
+								Force.at(x, y, z, 1) -= e[k][1] * _temp;
+								Force.at(x, y, z, 2) -= e[k][2] * _temp;
+							}
+
+							
 						}
 
-						Force.at(x, y, z, 2) += Fg(rho.at(x, y, z));
+						//Force.at(x, y, z, 2) += Fg(rho.at(x, y, z));
 					}
 					
 				}
@@ -531,10 +608,12 @@ public:
 	double error(){
 		double temp1 = 0;
 		double temp2 = 0;
-#pragma omp parallel for reduction (+:temp1,temp2)
+		double total_rho = 0;
+#pragma omp parallel for reduction (+:temp1,temp2,total_rho)
 		for (int x = 0; x < xdim; x++)
 			for (int y = 0; y < ydim; y++)
 				for (int z = 0; z < zdim; z++){
+					total_rho += rho.at(x, y, z);
 					temp1
 						+= (U0.at(x, y, z) - U.at(x, y, z)) * (U0.at(x, y, z) - U.at(x, y, z))
 						+ (V0.at(x, y, z) - V.at(x, y, z)) * (V0.at(x, y, z) - V.at(x, y, z))
@@ -546,6 +625,7 @@ public:
 				}
 		//cout << "temp1: " << temp1 << endl;
 		//cout << "temp2: " << temp2 << endl;
+		cout << "rho: " << total_rho << endl;
 		return sqrt(temp1 / (temp2 + 1e-30));
 	}
 
@@ -648,6 +728,14 @@ public:
 		return angle;
 	}
 
+	void output_attr(){
+		string fname = "lattice_attr";
+		ofstream out(fname.c_str(), ofstream::binary);
+
+		for (int j = 0; j < zdim; j++)
+			for (int i = 0; i < xdim; i++)
+				out.write((char*)&material.at(i, ydim / 2, j), sizeof(int));
+	}
 
 	void output(int m){
 		ostringstream name;
