@@ -38,7 +38,7 @@ int main(){
 		for (int i = 0;; i++){
 			cout << i << endl;
 			model.update();
-			if (i % 10 == 0)
+			if (true || i % 10 == 0)
 			{
 				cout << "gs: " << gs << " round:" << i << endl;
 				double model_error = model.error();
@@ -61,8 +61,9 @@ int main(){
 				}
 					
 			}
-			if (i % 10 == 0)
+			if (true || i % 10 == 0)
             {
+				model.output_speed_field(i);
 				model.output(i);
 			}
 		}
