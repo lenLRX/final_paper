@@ -5,6 +5,15 @@
 *.txt
 *.dat
 
+deploy.py
+
+*.jpg
+*.zip
+lentask*
+*.pbs
+a.out
+*.pyc
+
 *.vcxproj
 
 # User-specific files
