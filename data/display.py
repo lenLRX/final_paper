@@ -5,7 +5,8 @@ import math
 
 from energy import *
 
-tau_list = [0.53,0.57,0.61,0.65,0.69,0.75,0.78,0.8,0.83,0.85,1,1.2,1.35,1.45]#
+#tau_list = [0.53,0.57,0.61,0.65,0.69,0.75,0.78,0.8,0.83,0.85,1,1.2,1.35,1.45]#
+tau_list = [0.85]
 
 tau_velo = {}
 
@@ -61,7 +62,7 @@ def visualize_file(base_dir,fname,radius,tau):
     if(z_critical > 0):
         tau_velo[str(tau)].append((radius,z_critical,x_critical))
     
-    '''
+    
     fig = plt.figure()
     line_x_velo, = plt.plot(x_arr,x_velo,label = "x_velo")
     line_z_velo, = plt.plot(x_arr,z_velo,label = "z_velo")
@@ -74,7 +75,7 @@ def visualize_file(base_dir,fname,radius,tau):
     bottom_density, = plt.plot(x_arr,btm_density)
     plt.title("R = %d density"%radius)
     plt.savefig(os.path.join(os.path.join(base_dir,img_dir),"R%d_density.jpg"%radius))
-    '''
+    
 
 def visualize_dir(base_dir,dir_name,radius,tau):
     files = os.listdir(dir_name)
@@ -134,14 +135,14 @@ def summary():
         z_velo, = plt.plot([x[0] / 30.0 for x in tau_velo[str(tau)]],[x[1] for x in tau_velo[str(tau)]])
         x_velo, = plt.plot([x[0] / 30.0 for x in tau_velo[str(tau)]],[x[2] for x in tau_velo[str(tau)]])
         Ek_R = [(calc_Ek(get_real_radius(30,tau),get_real_radius(x[0],tau)),(get_real_radius(30,tau)**3 + get_real_radius(x[0],tau)**3) ** (1.0/3.0)) for x in tau_velo[str(tau)]]
-        theoretical_velo, = plt.plot([x[0] / 30.0 for x in tau_velo[str(tau)]],[get_dimensionless_velocity(calc_velocity(*x),tau,x[0]) for x in Ek_R])
+        #theoretical_velo, = plt.plot([x[0] / 30.0 for x in tau_velo[str(tau)]],[get_dimensionless_velocity(calc_velocity(*x),tau,x[0]) for x in Ek_R])
         legend_handles.append(z_velo)
         legend_handles.append(x_velo)
-        legend_handles.append(theoretical_velo)
+        #legend_handles.append(theoretical_velo)
 
         legend_names.append("z_velo tau = %s"%str(tau))
         legend_names.append("x_velo tau = %s"%str(tau))
-        legend_names.append("theoretical_velo tau = %s"%str(tau))
+        #legend_names.append("theoretical_velo tau = %s"%str(tau))
     
     #plt.legend(legend_handles,legend_names,loc = 0)
     plt.savefig("dimesionless.jpg")
